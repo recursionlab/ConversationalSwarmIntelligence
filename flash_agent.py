@@ -50,10 +50,10 @@ class FlashAgent:
                 f.write(f"### {card['concept']}\n{card['definition']}\n\n")
 
     def summarize(self):
-        summary = {}
-        for concept, defs in self.parse_notes().items():
-            summary[concept] = defs[0][:100] + ('...' if len(defs[0]) > 100 else '')
-        return summary
+        return {
+            concept: defs[0][:100] + ('...' if len(defs[0]) > 100 else '')
+            for concept, defs in self.parse_notes().items()
+        }
 
     def print_log(self):
         for msg in self.log_messages:
