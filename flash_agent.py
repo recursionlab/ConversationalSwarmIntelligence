@@ -101,7 +101,12 @@ def main():
     export_parser.add_argument('--json', default='flashcards.json', help='Output JSON file')
     export_parser.add_argument('--md', default='flashcards.md', help='Output Markdown file')
 
+    import sys
+
     args = parser.parse_args()
+    if args.command is None:
+        parser.print_help()
+        sys.exit(1)
     agent = FlashAgent(Path(args.notes))
 
     if args.command == 'summarize':
