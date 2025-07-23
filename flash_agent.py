@@ -59,7 +59,10 @@ class FlashAgent:
         return self.flashcards
 
     def export_json(self, output: Path):
-        output.write_text(json.dumps(self.flashcards, indent=2), encoding='utf-8')
+        try:
+            output.write_text(json.dumps(self.flashcards, indent=2), encoding='utf-8')
+        except Exception as e:
+            print(f"Failed to write JSON to {output}: {e}")
 
     def export_md(self, output: Path):
         with output.open('w', encoding='utf-8') as f:
