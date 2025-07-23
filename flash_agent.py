@@ -5,39 +5,64 @@ from collections import defaultdict
 
 class FlashAgent:
     def __init__(self, notes_dir: Path):
+        if not notes_dir.exists() or not notes_dir.is_dir():
+            raise ValueError(f"Notes directory '{notes_dir}' is invalid")
         self.notes_dir = notes_dir
         self.flashcards = []
         self.log_messages = []
+        self._parsed_notes = None
 
     def parse_notes(self):
+        if self._parsed_notes is not None:
+            return self._parsed_notes
+
         headings = defaultdict(list)
         for path in self.notes_dir.rglob('*.md'):
-            current_heading = None
+            current_concept = None
             current_content = []
-            for line in path.read_text(encoding='utf-8').splitlines():
-                if line.startswith('#'):
-                    if current_heading is not None:
-                        headings[current_heading].append('\n'.join(current_content).strip())
-                    current_heading = line.lstrip('#').strip()
+            try:
+                lines = path.read_text(encoding='utf-8').splitlines()
+            except Exception as e:
+                self.log_messages.append(f"Warning: Could not read file {path}: {e}")
+                continue
+            for line in lines:
+                if line.startswith('# '):
+                    if current_concept is not None and current_content:
+                        headings[current_concept].append('\n'.join(current_content).strip())
+                    current_concept = line.lstrip('#').strip()
+                    current_content = []
+                elif line.startswith('#'):
+                    if current_concept is not None and current_content:
+                        headings[current_concept].append('\n'.join(current_content).strip())
                     current_content = []
                 else:
                     current_content.append(line)
-            if current_heading is not None:
-                headings[current_heading].append('\n'.join(current_content).strip())
+            if current_concept is not None and current_content:
+                headings[current_concept].append('\n'.join(current_content).strip())
+
+        self._parsed_notes = headings
         return headings
 
     def generate_flashcards(self):
         definitions = defaultdict(list)
+        ambiguous_concepts = set()
         for concept, sections in self.parse_notes().items():
             for text in sections:
                 if concept in definitions and text not in definitions[concept]:
-                    self.log_messages.append(f"Ambiguity detected for '{concept}' with differing definitions.")
+                    ambiguous_concepts.add(concept)
                 definitions[concept].append(text)
                 self.flashcards.append({'concept': concept, 'definition': text})
+        if ambiguous_concepts:
+            self.log_messages.append(
+                f"Ambiguity detected for the following concepts with differing definitions: {', '.join(sorted(ambiguous_concepts))}."
+            )
         return self.flashcards
 
     def export_json(self, output: Path):
-        output.write_text(json.dumps(self.flashcards, indent=2), encoding='utf-8')
+        try:
+            output.write_text(json.dumps(self.flashcards, indent=2), encoding='utf-8')
+        except Exception as e:
+            print(f"Failed to write JSON to {output}: {e}")
 
     def export_md(self, output: Path):
         with output.open('w', encoding='utf-8') as f:
@@ -47,7 +72,11 @@ class FlashAgent:
     def summarize(self):
         summary = {}
         for concept, defs in self.parse_notes().items():
-            summary[concept] = defs[0][:100] + ('...' if len(defs[0]) > 100 else '')
+            if defs:
+                preview = defs[0]
+                summary[concept] = preview[:100] + ('...' if len(preview) > 100 else '')
+            else:
+                summary[concept] = ''
         return summary
 
     def print_log(self):
@@ -59,15 +88,25 @@ def main():
     parser = argparse.ArgumentParser(description='FlashAgent CLI')
     subparsers = parser.add_subparsers(dest='command')
 
-    subparsers.add_parser('summarize')
-    subparsers.add_parser('generate')
-    subparsers.add_parser('export')
+    summarize_parser = subparsers.add_parser('summarize')
+    generate_parser = subparsers.add_parser('generate')
+    export_parser = subparsers.add_parser('export')
 
-    parser.add_argument('--notes', default='notes', help='Path to notes directory')
-    parser.add_argument('--json', default='flashcards.json', help='Output JSON file')
-    parser.add_argument('--md', default='flashcards.md', help='Output Markdown file')
+    summarize_parser.add_argument('--notes', default='notes', help='Path to notes directory')
+    generate_parser.add_argument('--notes', default='notes', help='Path to notes directory')
+    export_parser.add_argument('--notes', default='notes', help='Path to notes directory')
+
+    generate_parser.add_argument('--json', default='flashcards.json', help='Output JSON file')
+    generate_parser.add_argument('--md', default='flashcards.md', help='Output Markdown file')
+    export_parser.add_argument('--json', default='flashcards.json', help='Output JSON file')
+    export_parser.add_argument('--md', default='flashcards.md', help='Output Markdown file')
+
+    import sys
 
     args = parser.parse_args()
+    if args.command is None:
+        parser.print_help()
+        sys.exit(1)
     agent = FlashAgent(Path(args.notes))
 
     if args.command == 'summarize':
