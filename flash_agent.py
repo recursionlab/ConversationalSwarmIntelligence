@@ -64,13 +64,20 @@ def main():
     parser = argparse.ArgumentParser(description='FlashAgent CLI')
     subparsers = parser.add_subparsers(dest='command')
 
-    subparsers.add_parser('summarize')
-    subparsers.add_parser('generate')
-    subparsers.add_parser('export')
+    summarize_parser = subparsers.add_parser('summarize')
+    generate_parser = subparsers.add_parser('generate')
+    export_parser = subparsers.add_parser('export')
 
-    parser.add_argument('--notes', default='notes', help='Path to notes directory')
-    parser.add_argument('--json', default='flashcards.json', help='Output JSON file')
-    parser.add_argument('--md', default='flashcards.md', help='Output Markdown file')
+    # Add --notes to all subparsers
+    summarize_parser.add_argument('--notes', default='notes', help='Path to notes directory')
+    generate_parser.add_argument('--notes', default='notes', help='Path to notes directory')
+    export_parser.add_argument('--notes', default='notes', help='Path to notes directory')
+
+    # Add --json and --md only to generate and export
+    generate_parser.add_argument('--json', default='flashcards.json', help='Output JSON file')
+    generate_parser.add_argument('--md', default='flashcards.md', help='Output Markdown file')
+    export_parser.add_argument('--json', default='flashcards.json', help='Output JSON file')
+    export_parser.add_argument('--md', default='flashcards.md', help='Output Markdown file')
 
     args = parser.parse_args()
     agent = FlashAgent(Path(args.notes))
