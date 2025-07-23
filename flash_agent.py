@@ -45,12 +45,17 @@ class FlashAgent:
 
     def generate_flashcards(self):
         definitions = defaultdict(list)
+        ambiguous_concepts = set()
         for concept, sections in self.parse_notes().items():
             for text in sections:
                 if concept in definitions and text not in definitions[concept]:
-                    self.log_messages.append(f"Ambiguity detected for '{concept}' with differing definitions.")
+                    ambiguous_concepts.add(concept)
                 definitions[concept].append(text)
                 self.flashcards.append({'concept': concept, 'definition': text})
+        if ambiguous_concepts:
+            self.log_messages.append(
+                f"Ambiguity detected for the following concepts with differing definitions: {', '.join(sorted(ambiguous_concepts))}."
+            )
         return self.flashcards
 
     def export_json(self, output: Path):
