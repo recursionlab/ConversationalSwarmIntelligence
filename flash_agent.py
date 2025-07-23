@@ -14,7 +14,12 @@ class FlashAgent:
         for path in self.notes_dir.rglob('*.md'):
             current_heading = None
             current_content = []
-            for line in path.read_text(encoding='utf-8').splitlines():
+            try:
+                lines = path.read_text(encoding='utf-8').splitlines()
+            except Exception as e:
+                self.log_messages.append(f"Warning: Could not read file {path}: {e}")
+                continue
+            for line in lines:
                 if line.startswith('#'):
                     if current_heading is not None:
                         headings[current_heading].append('\n'.join(current_content).strip())
